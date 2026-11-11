@@ -1,4 +1,5 @@
 {
   "worker_name": "openlist",
-  "kv_namespace_id": "7ac5c645e4d446cdb87d8658b1a3ef60"
+  "kv_namespace_id": "7ac5c645e4d446cdb87d8658b1a3ef60",
+  "public_url": "https://openlist.tianrong-ltd.workers.dev"
 }
