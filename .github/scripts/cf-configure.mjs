@@ -78,6 +78,11 @@ cfg.preview_urls = false
 cfg.kv_namespaces = [{ binding: "KV", id: overrides.kv_namespace_id }]
 cfg.vars = { ...cfg.vars, DB_DRIVER: "kv" }
 
+// 自定义域名：Cloudflare 自动创建 DNS 记录与证书
+if (overrides.custom_domain) {
+  cfg.routes = [{ pattern: overrides.custom_domain, custom_domain: true }]
+}
+
 fs.writeFileSync(CONFIG_PATH, `${JSON.stringify(cfg, null, 2)}\n`)
 console.log(
   `已生成部署配置：name=${cfg.name} workers_dev=${cfg.workers_dev} kv=${overrides.kv_namespace_id} DB_DRIVER=kv`,

@@ -78,5 +78,5 @@ jobs:
       - name: Smoke test
         run: |
           url=$(node -p "require('./.github/cf-config.json').public_url")
-          curl -fsS --retry 10 --retry-delay 3 --retry-all-errors -o /dev/null \
+          curl -fsS --retry 20 --retry-delay 5 --retry-all-errors -o /dev/null \
             -w "HTTP %{http_code} from $url\n" "$url"
