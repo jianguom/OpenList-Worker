@@ -78,5 +78,7 @@ jobs:
       - name: Smoke test
         run: |
           url=$(node -p "require('./.github/cf-config.json').public_url")
-          curl -fsS --retry 20 --retry-delay 5 --retry-all-errors -o /dev/null \
-            -w "HTTP %{http_code} from $url\n" "$url"
+          code=$(curl -sS -o /dev/null -w "%{http_code}" --retry 20 --retry-delay 5 --retry-all-errors "$url" || echo 000)
+          echo "HTTP $code from $url"
+          # 403 = Cloudflare 托管挑战（Cf-Mitigated: challenge），说明路由与证书已生效
+          case "$code" in 2*|3*|403) ;; *) echo "::error::部署后探测失败（$code）"; exit 1 ;; esac
