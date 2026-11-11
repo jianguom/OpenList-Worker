@@ -1,0 +1,76 @@
+name: Deploy to Cloudflare Workers
+
+# 自动跟随上游 OpenListTeam/OpenList-Worker：
+#   1. 每次运行先合并 upstream/main（fast-forward 或 merge commit 后推回本仓库）
+#   2. 用合并后的代码构建（拉取官方前端 dist + 生成边缘产物）
+#   3. wrangler deploy 到 Cloudflare Workers
+#
+# 触发方式：push 到 main、每天定时、手动 workflow_dispatch。
+# 用 GITHUB_TOKEN 推回的提交不会再次触发工作流，因此不会循环。
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    # 每天 03:17 UTC 跟随一次上游（上游更新频繁，可按需改密）
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    name: Sync upstream, build, deploy
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Merge upstream main
+        env:
+          UPSTREAM_REPO: https://github.com/OpenListTeam/OpenList-Worker.git
+        run: |
+          set -euo pipefail
+          git config user.name "openlist-deploy-bot"
+          git config user.email "openlist-deploy-bot@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM_REPO" 2>/dev/null || git remote set-url upstream "$UPSTREAM_REPO"
+          git fetch --no-tags upstream main
+          if git merge-base --is-ancestor FETCH_HEAD HEAD; then
+            echo "已是最新上游，跳过合并"
+            exit 0
+          fi
+          git merge --no-edit FETCH_HEAD
+          git push origin HEAD:main
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (frontend dist + edge artifacts)
+        run: pnpm run build
+
+      - name: Generate Cloudflare config
+        run: node .github/scripts/cf-configure.mjs
+
+      - name: Deploy to Cloudflare Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler deploy --yes

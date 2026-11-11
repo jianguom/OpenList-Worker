@@ -8,6 +8,8 @@ on:
 
 jobs:
   sync:
+    # fork 中未配置 Gitee 镜像时跳过，避免每次 push 都失败
+    if: vars.GITEE_REPO_URL != ''
     runs-on: ubuntu-latest
     name: Sync Repository
     steps:
